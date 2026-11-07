@@ -1,0 +1,1295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拼图工具 · 本地版</title>
+<style>
+  :root{
+    --bg:#f3f4f6;
+    --panel:#ffffff;
+    --line:#e5e7eb;
+    --text:#111827;
+    --muted:#6b7280;
+    --accent:#2563eb;
+    --accent-soft:#eff6ff;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font:14px/1.5 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+  }
+  header{
+    height:56px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:0 18px;
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.3px}
+  header .tag{
+    font-size:12px;color:var(--muted);
+    background:#f3f4f6;border:1px solid var(--line);
+    padding:2px 8px;border-radius:999px;
+  }
+  header .spacer{flex:1}
+  header .hint{font-size:12px;color:var(--muted)}
+
+  main{
+    display:flex;
+    height:calc(100% - 56px);
+    min-height:0;
+  }
+  aside{
+    width:340px;
+    flex:none;
+    border-right:1px solid var(--line);
+    background:var(--panel);
+    overflow:auto;
+    padding:14px;
+  }
+  .group{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:12px;
+    margin-bottom:12px;
+    background:#fff;
+  }
+  .group h2{
+    margin:0 0 10px;
+    font-size:13px;
+    font-weight:700;
+    color:#374151;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .group h2 small{font-weight:400;color:var(--muted);font-size:11px}
+  .h2-actions{display:flex;align-items:center;gap:2px}
+  .mini{
+    border:0;background:transparent;color:#6b7280;font-size:11px;
+    cursor:pointer;padding:2px 5px;border-radius:6px;line-height:1.4;
+  }
+  .mini:hover{background:#f3f4f6;color:#374151}
+  .mini.danger:hover{background:#fef2f2;color:#ef4444}
+  .mini.undo{color:#2563eb}
+  .mini.undo:hover{background:#eff6ff;color:#1d4ed8}
+
+  .drop{
+    border:1.5px dashed #cbd5e1;
+    border-radius:10px;
+    background:#fafafa;
+    padding:16px 12px;
+    text-align:center;
+    color:var(--muted);
+    cursor:pointer;
+    transition:.15s;
+    user-select:none;
+  }
+  .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .drop strong{display:block;color:#374151;margin-bottom:2px;font-size:13px}
+  .drop.over strong{color:var(--accent)}
+
+  .list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+  .list li{
+    display:flex;align-items:center;gap:8px;
+    border:1px solid var(--line);border-radius:10px;
+    padding:6px;background:#fff;
+    cursor:grab;
+  }
+  .list li.dragging{opacity:.35}
+  .list li img{width:44px;height:44px;object-fit:cover;border-radius:7px;background:#eee;flex:none}
+  .list .meta{min-width:0;flex:1}
+  .list .name{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .list .sub{font-size:11px;color:var(--muted);margin-top:1px}
+  .list .idx{
+    width:18px;height:18px;flex:none;border-radius:50%;
+    background:#eef2ff;color:#4f46e5;font-size:10px;
+    display:flex;align-items:center;justify-content:center;font-weight:700;
+  }
+  .list .del{
+    border:0;background:transparent;color:#9ca3af;font-size:16px;
+    cursor:pointer;line-height:1;padding:2px 4px;border-radius:6px;
+  }
+  .list .del:hover{background:#fef2f2;color:#ef4444}
+
+  .seg{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+  .seg.two{grid-template-columns:repeat(2,1fr);margin-top:8px}
+  .hintline{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .hintline.warn{color:#b45309}
+  .check{display:flex;align-items:center;gap:6px;font-size:12px;color:#4b5563;flex:1;white-space:nowrap}
+  .check input{accent-color:var(--accent)}
+  .seg button{
+    border:1px solid var(--line);background:#fff;border-radius:8px;
+    padding:7px 4px;font-size:12px;cursor:pointer;color:#374151;
+  }
+  .seg button.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+  .row{display:flex;align-items:center;gap:8px;margin-top:9px}
+  .row label{width:74px;flex:none;color:#4b5563;font-size:12px}
+  .row input[type=number],.row select{
+    flex:1;min-width:0;height:32px;border:1px solid var(--line);border-radius:8px;
+    padding:0 8px;font-size:12px;background:#fff;color:var(--text);
+  }
+  .row input[type=range]{flex:1;accent-color:var(--accent)}
+  .row .val{width:46px;text-align:right;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+  .row input[type=color]{width:38px;height:32px;padding:2px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .row .swatch-label{flex:1;font-size:12px;color:var(--muted)}
+
+  .primary{
+    width:100%;height:40px;border:0;border-radius:10px;
+    background:var(--accent);color:#fff;font-size:14px;font-weight:700;
+    cursor:pointer;margin-top:4px;
+  }
+  .primary:hover{background:#1d4ed8}
+  .primary:disabled{background:#c7d2fe;cursor:not-allowed}
+  .ghost{
+    width:100%;height:34px;border:1px solid var(--line);border-radius:9px;
+    background:#fff;color:#374151;font-size:12px;cursor:pointer;margin-top:8px;
+  }
+  .ghost:hover{background:#f9fafb}
+
+  .stage{
+    flex:1;min-width:0;display:flex;flex-direction:column;
+    background:
+      radial-gradient(circle at 1px 1px, #d1d5db 1px, transparent 0) 0 0/18px 18px,
+      #eceef2;
+  }
+  .stage-bar{
+    height:42px;flex:none;display:flex;align-items:center;gap:12px;
+    padding:0 16px;background:rgba(255,255,255,.86);
+    border-bottom:1px solid var(--line);
+    font-size:12px;color:var(--muted);backdrop-filter:blur(6px);
+  }
+  .stage-bar b{color:#111827;font-weight:600}
+  .stage-bar .warn{color:#b45309}
+  .canvas-wrap{
+    flex:1;min-height:0;overflow:auto;padding:24px;
+    display:flex;align-items:flex-start;justify-content:center;
+  }
+  .stage{position:relative}
+  canvas{
+    max-width:100%;
+    max-height:calc(100vh - 56px - 42px - 48px);
+    width:auto;height:auto;
+    background:#fff;
+    box-shadow:0 8px 30px rgba(17,24,39,.15);
+    border-radius:2px;
+    touch-action:none;
+    cursor:default;
+  }
+  .sel-bar{
+    position:absolute;left:50%;bottom:18px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:8px;
+    background:rgba(17,24,39,.92);color:#fff;
+    padding:7px 10px;border-radius:999px;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);
+    font-size:12px;z-index:20;max-width:calc(100% - 32px);
+  }
+  .sel-bar button{
+    width:26px;height:26px;border:0;border-radius:50%;
+    background:rgba(255,255,255,.14);color:#fff;cursor:pointer;
+    font-size:14px;line-height:1;
+  }
+  .sel-bar button:hover{background:rgba(255,255,255,.26)}
+  .sel-bar .sel-reset{width:auto;padding:0 10px;border-radius:999px;font-size:12px}
+  .sel-bar .sel-name{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e5e7eb}
+  .sel-bar input[type=range]{width:120px;accent-color:#60a5fa}
+  .sel-bar .sel-val{width:42px;text-align:right;font-variant-numeric:tabular-nums;color:#bfdbfe}
+  .empty-tip{color:#6b7280;font-size:13px}
+  @media (max-width:900px){
+    main{flex-direction:column;height:auto}
+    aside{width:100%;border-right:0;border-bottom:1px solid var(--line)}
+    .canvas-wrap{padding:12px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>拼图工具</h1>
+  <span class="tag">本地运行</span>
+  <span class="spacer"></span>
+  <span class="hint">图片只在浏览器内处理，不会上传</span>
+</header>
+
+<main>
+  <aside>
+    <div class="group">
+      <h2>图片 <small id="count">0 张</small>
+        <span class="h2-actions">
+          <button type="button" class="mini undo" id="undoClear" hidden>撤销</button>
+          <button type="button" class="mini danger" id="clearAll" hidden>清空</button>
+        </span>
+      </h2>
+      <div class="drop" id="drop">
+        <strong>拖拽图片到这里</strong>
+        点击选择 · 支持 Ctrl+V 粘贴
+      </div>
+      <input type="file" id="file" accept="image/*" multiple hidden>
+      <ul class="list" id="list"></ul>
+    </div>
+
+    <div class="group">
+      <h2>布局</h2>
+      <div class="seg" id="layoutSeg">
+        <button data-layout="horizontal" class="active">横向拼接</button>
+        <button data-layout="vertical">纵向拼接</button>
+        <button data-layout="grid">网格拼图</button>
+        <button data-layout="auto">智能拼接</button>
+      </div>
+
+      <div class="seg two" id="sizeSeg">
+        <button data-size="original" class="active">原图画质 1:1</button>
+        <button data-size="custom">自定义尺寸</button>
+      </div>
+      <div class="hintline" id="qualityHint"></div>
+
+      <div id="optHorizontal">
+        <div class="row"><label>统一高度</label><input type="number" id="outHeight" min="64" max="8000" step="10" value="1080"><span class="val">px</span></div>
+      </div>
+
+      <div id="optVertical" hidden>
+        <div class="row"><label>输出宽度</label><input type="number" id="outWidth" min="64" max="8000" step="10" value="1200"><span class="val">px</span></div>
+      </div>
+
+      <div id="optGrid" hidden>
+        <div class="row" id="gridWidthRow"><label>输出宽度</label><input type="number" id="gridWidth" min="64" max="8000" step="10" value="1200"><span class="val">px</span></div>
+        <div class="row"><label>列数</label><input type="number" id="cols" min="1" max="10" step="1" value="2"></div>
+        <div class="row" id="cellRatioRow"><label>单元格</label>
+          <select id="cellRatio">
+            <option value="1">1 : 1</option>
+            <option value="1.3333">4 : 3</option>
+            <option value="0.75">3 : 4</option>
+            <option value="1.7778" selected>16 : 9</option>
+            <option value="0.5625">9 : 16</option>
+          </select>
+        </div>
+        <div class="row"><label>填充方式</label>
+          <select id="fit">
+            <option value="cover" selected>裁切填满</option>
+            <option value="contain">完整显示</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="optAuto" hidden>
+        <div class="row"><label>列数</label>
+          <select id="autoCols">
+            <option value="0" selected>自动（填充率最高）</option>
+            <option value="1">1 列</option>
+            <option value="2">2 列</option>
+            <option value="3">3 列</option>
+            <option value="4">4 列</option>
+            <option value="5">5 列</option>
+            <option value="6">6 列</option>
+          </select>
+        </div>
+        <div class="row"><label>画布比例</label>
+          <select id="autoRatio">
+            <option value="free" selected>自由</option>
+            <option value="1">1 : 1</option>
+            <option value="1.3333">4 : 3</option>
+            <option value="0.75">3 : 4</option>
+            <option value="1.7778">16 : 9</option>
+            <option value="0.5625">9 : 16</option>
+            <option value="1.5">3 : 2</option>
+            <option value="0.6667">2 : 3</option>
+          </select>
+        </div>
+        <div class="hintline">按原图 1:1 排布，不裁切、不缩放；自动选择空白最少的列数。</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>样式</h2>
+      <div class="row"><label>图片间距</label><input type="range" id="gap" min="0" max="120" step="1" value="12"><span class="val" id="gapVal">12</span></div>
+      <div class="row"><label>外边距</label><input type="range" id="padding" min="0" max="200" step="1" value="24"><span class="val" id="paddingVal">24</span></div>
+      <div class="row"><label>圆角</label><input type="range" id="radius" min="0" max="80" step="1" value="0"><span class="val" id="radiusVal">0</span></div>
+      <div class="row"><label>背景</label><input type="color" id="bg" value="#ffffff"><span class="swatch-label">透明 PNG 会填这个颜色</span></div>
+    </div>
+
+    <div class="group">
+      <h2>导出</h2>
+      <div class="row"><label>格式</label>
+        <select id="format">
+          <option value="png" selected>PNG</option>
+          <option value="jpeg">JPEG</option>
+          <option value="webp">WebP</option>
+        </select>
+      </div>
+      <div class="row" id="qualityRow" hidden><label>质量</label><input type="range" id="quality" min="0.5" max="1" step="0.01" value="0.92"><span class="val" id="qualityVal">0.92</span></div>
+      <div class="row"><label>压缩</label><label class="check"><input type="checkbox" id="compress"> 限制大小并导出 JPG</label></div>
+      <div class="row" id="targetRow" hidden><label>目标大小</label><input type="number" id="targetKB" min="10" max="50000" step="10" value="2000"><span class="val">KB</span></div>
+      <div class="hintline" id="compressHint"></div>
+      <div class="hintline" id="exportStatus"></div>
+      <button class="primary" id="export" disabled>导出图片</button>
+      <button class="ghost" id="reset">恢复默认设置</button>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <div class="stage-bar">
+      <span>画布 <b id="dims">—</b></span>
+      <span id="warn" class="warn"></span>
+      <span class="spacer" style="flex:1"></span>
+      <span id="sortHint">拖动左侧缩略图可调整顺序</span>
+    </div>
+    <div class="canvas-wrap" id="wrap">
+      <canvas id="canvas" width="900" height="520"></canvas>
+    </div>
+
+    <div class="sel-bar" id="selBar" hidden>
+      <span class="sel-name" id="selName">—</span>
+      <button type="button" id="selMinus" title="缩小">−</button>
+      <input type="range" id="selScale" min="10" max="300" step="1" value="100">
+      <span class="sel-val" id="selVal">100%</span>
+      <button type="button" id="selPlus" title="放大">+</button>
+      <button type="button" class="sel-reset" id="selReset">重置</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('canvas');
+  const ctx = canvas.getContext('2d');
+  const MAX_SIDE = 16000;
+
+  const state = {
+    images: [],
+    layout: 'horizontal',
+    sizeMode: 'original',
+    compress: false,
+    targetKB: 2000,
+    autoCols: 0,
+    autoRatio: 'free',
+    selected: null,
+    outHeight: 1080,
+    outWidth: 1200,
+    gridWidth: 1200,
+    cols: 2,
+    cellRatio: 1.7778,
+    fit: 'cover',
+    gap: 12,
+    padding: 24,
+    radius: 0,
+    bg: '#ffffff',
+    format: 'png',
+    quality: 0.92
+  };
+
+  let dragIndex = -1;
+  let raf = 0;
+  let lastLayout = null;
+  let lastRenderScale = 1;
+  let selectionDrag = null;
+
+  /* ---------- image loading ---------- */
+
+  function addFiles(files) {
+    const list = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
+    if (!list.length) return;
+
+    const loaded = list.map((file) => new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => resolve({
+        img,
+        url,
+        name: file.name || '粘贴的图片',
+        w: img.naturalWidth,
+        h: img.naturalHeight,
+        scale: 1
+      });
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    }));
+
+    Promise.all(loaded).then((items) => {
+      items.filter(Boolean).forEach((item) => state.images.push(item));
+      renderList();
+      schedule();
+    });
+  }
+
+  function removeImage(index) {
+    const item = state.images[index];
+    if (item) URL.revokeObjectURL(item.url);
+    if (item === state.selected) state.selected = null;
+    state.images.splice(index, 1);
+    renderList();
+    schedule();
+  }
+
+  function moveImage(from, to) {
+    if (from === to || from < 0 || to < 0) return;
+    const [item] = state.images.splice(from, 1);
+    state.images.splice(to, 0, item);
+    renderList();
+    schedule();
+  }
+
+  function renderList() {
+    const list = $('list');
+    list.innerHTML = '';
+    $('count').textContent = state.images.length + ' 张';
+    $('export').disabled = state.images.length === 0;
+    $('clearAll').hidden = state.images.length === 0;
+
+    state.images.forEach((item, index) => {
+      const li = document.createElement('li');
+      li.draggable = true;
+      li.dataset.index = String(index);
+
+      const idx = document.createElement('span');
+      idx.className = 'idx';
+      idx.textContent = String(index + 1);
+
+      const thumb = document.createElement('img');
+      thumb.src = item.url;
+      thumb.alt = '';
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = item.name;
+      const sub = document.createElement('div');
+      sub.className = 'sub';
+      sub.textContent = item.w + ' × ' + item.h;
+      meta.append(name, sub);
+
+      const del = document.createElement('button');
+      del.className = 'del';
+      del.type = 'button';
+      del.title = '删除';
+      del.textContent = '×';
+      del.addEventListener('click', (e) => { e.stopPropagation(); removeImage(index); });
+
+      li.append(idx, thumb, meta, del);
+
+      li.addEventListener('dragstart', (e) => {
+        dragIndex = index;
+        li.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', String(index)); } catch (_) {}
+      });
+      li.addEventListener('dragend', () => { li.classList.remove('dragging'); dragIndex = -1; });
+      li.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+      li.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const from = dragIndex >= 0 ? dragIndex : Number(e.dataTransfer.getData('text/plain'));
+        moveImage(from, index);
+      });
+
+      list.appendChild(li);
+    });
+  }
+
+  let clearedBackup = null;
+  let clearTimer = 0;
+
+  function clearAllImages() {
+    if (!state.images.length) return;
+    if (clearedBackup) clearedBackup.forEach((item) => URL.revokeObjectURL(item.url));
+    clearedBackup = state.images.slice();
+    state.images = [];
+    state.selected = null;
+    $('selBar').hidden = true;
+    $('undoClear').hidden = false;
+    if (clearTimer) clearTimeout(clearTimer);
+    clearTimer = window.setTimeout(() => {
+      if (clearedBackup) {
+        clearedBackup.forEach((item) => URL.revokeObjectURL(item.url));
+        clearedBackup = null;
+      }
+      $('undoClear').hidden = true;
+      clearTimer = 0;
+    }, 8000);
+    renderList();
+    schedule();
+  }
+
+  function undoClearImages() {
+    if (!clearedBackup) return;
+    if (clearTimer) clearTimeout(clearTimer);
+    clearTimer = 0;
+    state.images = clearedBackup.concat(state.images);
+    clearedBackup = null;
+    $('undoClear').hidden = true;
+    renderList();
+    schedule();
+  }
+
+  $('clearAll').addEventListener('click', clearAllImages);
+  $('undoClear').addEventListener('click', undoClearImages);
+
+  /* ---------- layout & drawing ---------- */
+
+  function roundRectPath(c, x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+    c.beginPath();
+    c.moveTo(x + rr, y);
+    c.arcTo(x + w, y, x + w, y + h, rr);
+    c.arcTo(x + w, y + h, x, y + h, rr);
+    c.arcTo(x, y + h, x, y, rr);
+    c.arcTo(x, y, x + w, y, rr);
+    c.closePath();
+  }
+
+  function drawCover(item, x, y, w, h) {
+    const ir = item.w / item.h;
+    const cr = w / h;
+    let sx = 0, sy = 0, sw = item.w, sh = item.h;
+    if (ir > cr) {
+      sw = item.h * cr;
+      sx = (item.w - sw) / 2;
+    } else {
+      sh = item.w / cr;
+      sy = (item.h - sh) / 2;
+    }
+    ctx.drawImage(item.img, sx, sy, sw, sh, x, y, w, h);
+  }
+
+  function drawContain(item, x, y, w, h) {
+    const scale = Math.min(w / item.w, h / item.h);
+    const dw = item.w * scale;
+    const dh = item.h * scale;
+    ctx.drawImage(item.img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  }
+
+  function drawNatural(item, x, y, w, h) {
+    ctx.save();
+    if (state.radius > 0) {
+      roundRectPath(ctx, x, y, w, h, state.radius);
+      ctx.clip();
+    }
+    ctx.drawImage(item.img, x, y, w, h);
+    ctx.restore();
+  }
+
+  function drawImageInCell(item, x, y, w, h) {
+    ctx.save();
+    if (state.radius > 0) {
+      roundRectPath(ctx, x, y, w, h, state.radius);
+      ctx.clip();
+    }
+    if (state.fit === 'contain') drawContain(item, x, y, w, h);
+    else drawCover(item, x, y, w, h);
+    ctx.restore();
+  }
+
+  function imgSize(item) {
+    const s = item.scale || 1;
+    return { w: item.w * s, h: item.h * s };
+  }
+
+  function computeOriginalLayout(n, gap, pad) {
+    const dims = state.images.map(imgSize);
+
+    if (state.layout === 'horizontal') {
+      const maxH = Math.max(...dims.map((d) => d.h));
+      const items = state.images.map((item, i) => ({ item, x: 0, y: 0, w: dims[i].w, h: dims[i].h, natural: true }));
+      let x = pad;
+      items.forEach((it) => { it.x = x; it.y = pad + (maxH - it.h) / 2; x += it.w + gap; });
+      const width = pad * 2 + items.reduce((s, it) => s + it.w, 0) + gap * (n - 1);
+      return { width, height: maxH + pad * 2, items, mode: 'horizontal' };
+    }
+
+    if (state.layout === 'vertical') {
+      const maxW = Math.max(...dims.map((d) => d.w));
+      const items = state.images.map((item, i) => ({ item, x: 0, y: 0, w: dims[i].w, h: dims[i].h, natural: true }));
+      let y = pad;
+      items.forEach((it) => { it.y = y; it.x = pad + (maxW - it.w) / 2; y += it.h + gap; });
+      const height = pad * 2 + items.reduce((s, it) => s + it.h, 0) + gap * (n - 1);
+      return { width: maxW + pad * 2, height, items, mode: 'vertical' };
+    }
+
+    const cols = Math.max(1, Math.min(state.cols, n));
+    const rows = Math.ceil(n / cols);
+    const cellW = Math.max(...dims.map((d) => d.w));
+    const cellH = Math.max(...dims.map((d) => d.h));
+    const items = state.images.map((item, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      return {
+        item,
+        x: pad + col * (cellW + gap) + (cellW - dims[i].w) / 2,
+        y: pad + row * (cellH + gap) + (cellH - dims[i].h) / 2,
+        w: dims[i].w,
+        h: dims[i].h,
+        natural: true
+      };
+    });
+    const width = pad * 2 + cols * cellW + gap * (cols - 1);
+    const height = pad * 2 + rows * cellH + gap * (rows - 1);
+    return { width, height, items, mode: 'grid' };
+  }
+
+  function computeAutoLayout(n, gap, pad) {
+    const ks = [];
+    if (state.autoCols > 0) {
+      ks.push(Math.max(1, Math.min(state.autoCols, n)));
+    } else {
+      for (let k = 1; k <= Math.min(6, n); k++) ks.push(k);
+    }
+
+    const ratio = parseFloat(state.autoRatio);
+    const targetRatio = isFinite(ratio) && ratio > 0 ? ratio : 0;
+    const dims = state.images.map(imgSize);
+
+    let best = null;
+    for (const k of ks) {
+      const cols = Array.from({ length: k }, () => ({ x: pad, w: 0, h: pad, items: [] }));
+
+      state.images.forEach((item, idx) => {
+        let ci = 0;
+        for (let j = 1; j < k; j++) {
+          if (cols[j].h < cols[ci].h - 0.5) ci = j;
+        }
+        const c = cols[ci];
+        c.items.push(idx);
+        c.w = Math.max(c.w, dims[idx].w);
+        c.h += dims[idx].h + gap;
+      });
+
+      let x = pad;
+      cols.forEach((c) => {
+        c.x = x;
+        x += c.w + gap;
+      });
+
+      const width = pad * 2 + cols.reduce((s, c) => s + c.w, 0) + gap * (k - 1);
+      const height = Math.max(...cols.map((c) => c.h)) - gap + pad;
+
+      const items = [];
+      cols.forEach((c) => {
+        let y = pad;
+        c.items.forEach((idx) => {
+          items.push({
+            item: state.images[idx],
+            x: c.x + (c.w - dims[idx].w) / 2,
+            y,
+            w: dims[idx].w,
+            h: dims[idx].h,
+            natural: true
+          });
+          y += dims[idx].h + gap;
+        });
+      });
+
+      let finalW = width;
+      let finalH = height;
+      if (targetRatio) {
+        if (width / height < targetRatio) {
+          finalW = height * targetRatio;
+          const off = (finalW - width) / 2;
+          items.forEach((it) => { it.x += off; });
+        } else {
+          finalH = width / targetRatio;
+          const off = (finalH - height) / 2;
+          items.forEach((it) => { it.y += off; });
+        }
+      }
+
+      const used = dims.reduce((s, d) => s + d.w * d.h, 0);
+      const util = used / Math.max(1, finalW * finalH);
+
+      if (!best || util > best.util + 0.001 || (Math.abs(util - best.util) <= 0.001 && finalW < best.width)) {
+        best = { width: finalW, height: finalH, items, mode: 'auto', util, cols: k };
+      }
+    }
+    return best;
+  }
+
+  function computeLayout() {
+    const n = state.images.length;
+    const gap = Math.max(0, state.gap);
+    const pad = Math.max(0, state.padding);
+
+    if (state.layout === 'auto') return computeAutoLayout(n, gap, pad);
+    if (state.sizeMode === 'original') return computeOriginalLayout(n, gap, pad);
+
+    if (state.layout === 'horizontal') {
+      const height = Math.max(32, state.outHeight);
+      const items = state.images.map((item) => {
+        const w = height * (item.w / item.h);
+        return { item, x: 0, y: pad, w, h: height };
+      });
+      let x = pad;
+      items.forEach((it) => { it.x = x; x += it.w + gap; });
+      const width = pad * 2 + items.reduce((s, it) => s + it.w, 0) + gap * (n - 1);
+      return { width, height: height + pad * 2, items, mode: 'horizontal' };
+    }
+
+    if (state.layout === 'vertical') {
+      const width = Math.max(64, state.outWidth);
+      const contentW = Math.max(16, width - pad * 2);
+      const items = state.images.map((item) => ({
+        item, x: pad, y: 0, w: contentW, h: contentW * (item.h / item.w)
+      }));
+      let y = pad;
+      items.forEach((it) => { it.y = y; y += it.h + gap; });
+      const height = pad * 2 + items.reduce((s, it) => s + it.h, 0) + gap * (n - 1);
+      return { width, height, items, mode: 'vertical' };
+    }
+
+    // grid
+    const width = Math.max(64, state.gridWidth);
+    const cols = Math.max(1, Math.min(state.cols, n));
+    const rows = Math.ceil(n / cols);
+    const contentW = Math.max(16, width - pad * 2);
+    const cellW = (contentW - gap * (cols - 1)) / cols;
+    const cellH = cellW / Math.max(0.1, state.cellRatio);
+    const items = state.images.map((item, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      return {
+        item,
+        x: pad + col * (cellW + gap),
+        y: pad + row * (cellH + gap),
+        w: cellW,
+        h: cellH
+      };
+    });
+    const height = pad * 2 + rows * cellH + gap * (rows - 1);
+    return { width, height, items, mode: 'grid' };
+  }
+
+  function selectionEnabled() {
+    return state.layout === 'auto' || state.sizeMode === 'original';
+  }
+
+  function selectedItemRect() {
+    if (!state.selected || !lastLayout) return null;
+    return lastLayout.items.find((it) => it.item === state.selected) || null;
+  }
+
+  function drawSelection(scale) {
+    if (!selectionEnabled()) return;
+    const it = selectedItemRect();
+    if (!it) return;
+    const hs = 8 / scale;
+    ctx.save();
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = 2 / scale;
+    ctx.strokeRect(it.x, it.y, it.w, it.h);
+    [[it.x, it.y], [it.x + it.w, it.y], [it.x, it.y + it.h], [it.x + it.w, it.y + it.h]].forEach(([x, y]) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 1.5 / scale;
+      ctx.beginPath();
+      ctx.rect(x - hs / 2, y - hs / 2, hs, hs);
+      ctx.fill();
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function syncSelectionBar(layout) {
+    const bar = $('selBar');
+    if (!state.selected || !layout || !selectionEnabled()) {
+      bar.hidden = true;
+      return;
+    }
+    const it = layout.items.find((x) => x.item === state.selected);
+    if (!it) {
+      bar.hidden = true;
+      return;
+    }
+    bar.hidden = false;
+    $('selName').textContent = state.selected.name + ' · ' + Math.round(it.w) + '×' + Math.round(it.h);
+    const pct = Math.round((state.selected.scale || 1) * 100);
+    $('selScale').value = String(pct);
+    $('selVal').textContent = pct + '%';
+  }
+
+  function canvasPoint(ev) {
+    const r = canvas.getBoundingClientRect();
+    return {
+      x: ((ev.clientX - r.left) * (canvas.width / r.width)) / lastRenderScale,
+      y: ((ev.clientY - r.top) * (canvas.height / r.height)) / lastRenderScale
+    };
+  }
+
+  function hitTest(p) {
+    if (!lastLayout) return null;
+    for (let i = lastLayout.items.length - 1; i >= 0; i--) {
+      const it = lastLayout.items[i];
+      if (p.x >= it.x && p.x <= it.x + it.w && p.y >= it.y && p.y <= it.y + it.h) return it;
+    }
+    return null;
+  }
+
+  function nearCorner(p, it) {
+    const t = 14 / lastRenderScale;
+    return [[it.x, it.y], [it.x + it.w, it.y], [it.x, it.y + it.h], [it.x + it.w, it.y + it.h]]
+      .some(([x, y]) => Math.abs(p.x - x) <= t && Math.abs(p.y - y) <= t);
+  }
+
+  function setSelectedScale(value) {
+    if (!state.selected) return;
+    state.selected.scale = Math.max(0.1, Math.min(3, value));
+    syncSelectionBar(lastLayout);
+    schedule();
+  }
+
+  function updateQualityHint() {
+    const el = $('qualityHint');
+    if (!state.images.length) {
+      el.textContent = '';
+      el.classList.remove('warn');
+      return;
+    }
+    if (state.layout === 'auto') {
+      const ratioLabel = {
+        free: '自由比例', '1': '1:1', '1.3333': '4:3', '0.75': '3:4',
+        '1.7778': '16:9', '0.5625': '9:16', '1.5': '3:2', '0.6667': '2:3'
+      }[state.autoRatio] || '自由比例';
+      el.textContent = '智能拼接：' + (state.autoCols > 0 ? state.autoCols + ' 列' : '自动列数') +
+        '，' + ratioLabel + '，原图 1:1，不裁切、不缩放';
+      el.classList.remove('warn');
+      return;
+    }
+
+    const maxW = Math.max(...state.images.map((i) => i.w));
+    const maxH = Math.max(...state.images.map((i) => i.h));
+    let text = '';
+    let warn = false;
+
+    if (state.sizeMode === 'original') {
+      text = '按原始像素 1:1 输出（最大原图 ' + maxW + '×' + maxH + '）';
+    } else if (state.layout === 'horizontal') {
+      const s = state.outHeight / maxH;
+      text = '统一高度 ' + state.outHeight + 'px，相对原图约 ' + Math.round(s * 100) + '%';
+      warn = s < 0.999;
+    } else if (state.layout === 'vertical') {
+      const contentW = Math.max(16, state.outWidth - state.padding * 2);
+      const s = contentW / maxW;
+      text = '输出宽度 ' + state.outWidth + 'px，相对原图约 ' + Math.round(s * 100) + '%';
+      warn = s < 0.999;
+    } else {
+      const cols = Math.max(1, Math.min(state.cols, state.images.length));
+      const contentW = Math.max(16, state.gridWidth - state.padding * 2);
+      const cellW = (contentW - state.gap * (cols - 1)) / cols;
+      const s = cellW / maxW;
+      text = '单元格约 ' + Math.round(cellW) + 'px 宽，相对原图约 ' + Math.round(s * 100) + '%（网格会裁切或留白）';
+      warn = s < 0.999;
+    }
+
+    if (warn) text += ' · 会缩小原图，建议切到「原图画质 1:1」';
+    el.textContent = text;
+    el.classList.toggle('warn', warn);
+  }
+
+  function draw() {
+    raf = 0;
+    const n = state.images.length;
+
+    if (n === 0) {
+      canvas.width = 900;
+      canvas.height = 520;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '600 20px system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('把图片拖进来，或点击左侧选择图片', canvas.width / 2, canvas.height / 2 - 6);
+      ctx.font = '13px system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif';
+      ctx.fillStyle = '#c0c4cc';
+      ctx.fillText('支持横向 / 纵向 / 网格，导出 PNG、JPEG、WebP', canvas.width / 2, canvas.height / 2 + 24);
+      lastLayout = null;
+      $('selBar').hidden = true;
+      $('dims').textContent = '—';
+      $('warn').textContent = '';
+      updateQualityHint();
+      return;
+    }
+
+    const layout = computeLayout();
+    if (!isFinite(layout.width) || !isFinite(layout.height) || layout.width < 1 || layout.height < 1) return;
+
+    let scale = 1;
+    let warn = '';
+    if (layout.width > MAX_SIDE || layout.height > MAX_SIDE) {
+      scale = Math.min(MAX_SIDE / layout.width, MAX_SIDE / layout.height);
+      warn = '尺寸超过 ' + MAX_SIDE + 'px，已自动缩小到 ' + Math.round(layout.width * scale) + ' × ' + Math.round(layout.height * scale);
+    }
+
+    canvas.width = Math.max(1, Math.round(layout.width * scale));
+    canvas.height = Math.max(1, Math.round(layout.height * scale));
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = state.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    layout.items.forEach((it) => {
+      if (it.natural) drawNatural(it.item, it.x, it.y, it.w, it.h);
+      else drawImageInCell(it.item, it.x, it.y, it.w, it.h);
+    });
+
+    lastLayout = layout;
+    lastRenderScale = scale;
+    drawSelection(scale);
+    syncSelectionBar(layout);
+
+    $('dims').textContent = canvas.width + ' × ' + canvas.height + ' px';
+    $('warn').textContent = warn;
+    updateQualityHint();
+  }
+
+  function schedule() {
+    if (raf) return;
+    raf = requestAnimationFrame(draw);
+  }
+
+  /* ---------- controls ---------- */
+
+  function bindNumber(id, key, min, max) {
+    const el = $(id);
+    el.addEventListener('input', () => {
+      let v = Number(el.value);
+      if (!isFinite(v)) return;
+      v = Math.max(min, Math.min(max, v));
+      state[key] = v;
+      schedule();
+    });
+    el.addEventListener('blur', () => { el.value = String(state[key]); });
+  }
+
+  bindNumber('outHeight', 'outHeight', 32, 8000);
+  bindNumber('outWidth', 'outWidth', 64, 8000);
+  bindNumber('gridWidth', 'gridWidth', 64, 8000);
+  bindNumber('cols', 'cols', 1, 10);
+
+  ['gap', 'padding', 'radius'].forEach((key) => {
+    const el = $(key);
+    const out = $(key + 'Val');
+    el.addEventListener('input', () => {
+      state[key] = Number(el.value);
+      out.textContent = el.value;
+      schedule();
+    });
+    out.textContent = el.value;
+  });
+
+  $('bg').addEventListener('input', (e) => { state.bg = e.target.value; schedule(); });
+
+  $('cellRatio').addEventListener('change', (e) => { state.cellRatio = Number(e.target.value); schedule(); });
+  $('fit').addEventListener('change', (e) => { state.fit = e.target.value; schedule(); });
+
+  function updateVisibility() {
+    const auto = state.layout === 'auto';
+    const original = state.sizeMode === 'original';
+    $('sizeSeg').hidden = auto;
+    $('optAuto').hidden = !auto;
+    $('optHorizontal').hidden = auto || original || state.layout !== 'horizontal';
+    $('optVertical').hidden = auto || original || state.layout !== 'vertical';
+    $('optGrid').hidden = auto || state.layout !== 'grid';
+    $('gridWidthRow').hidden = original;
+    $('cellRatioRow').hidden = original;
+    if (!selectionEnabled()) {
+      state.selected = null;
+      $('selBar').hidden = true;
+    }
+  }
+
+  $('layoutSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-layout]');
+    if (!btn) return;
+    state.layout = btn.dataset.layout;
+    [...$('layoutSeg').querySelectorAll('button')].forEach((b) => b.classList.toggle('active', b === btn));
+    updateVisibility();
+    schedule();
+  });
+
+  $('sizeSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-size]');
+    if (!btn) return;
+    state.sizeMode = btn.dataset.size;
+    [...$('sizeSeg').querySelectorAll('button')].forEach((b) => b.classList.toggle('active', b === btn));
+    updateVisibility();
+    schedule();
+  });
+
+  $('autoCols').addEventListener('change', (e) => {
+    state.autoCols = Number(e.target.value) || 0;
+    schedule();
+  });
+
+  function updateCompressHint() {
+    const el = $('compressHint');
+    if (state.format === 'png') {
+      el.textContent = 'PNG 是无损格式，不能按大小压缩；要压体积请选 JPEG / WebP。';
+      el.classList.add('warn');
+    } else if (state.compress) {
+      el.textContent = '将导出 JPG，自动降低画质逼近目标大小，不缩小分辨率。';
+      el.classList.remove('warn');
+    } else {
+      el.textContent = '';
+      el.classList.remove('warn');
+    }
+  }
+
+  $('format').addEventListener('change', (e) => {
+    state.format = e.target.value;
+    $('qualityRow').hidden = state.format === 'png';
+    if (state.format === 'png') {
+      state.compress = false;
+      $('compress').checked = false;
+      $('targetRow').hidden = true;
+    }
+    updateCompressHint();
+  });
+  $('quality').addEventListener('input', (e) => {
+    state.quality = Number(e.target.value);
+    $('qualityVal').textContent = Number(e.target.value).toFixed(2);
+  });
+
+  $('compress').addEventListener('change', (e) => {
+    state.compress = e.target.checked;
+    if (state.compress && state.format !== 'jpeg') {
+      state.format = 'jpeg';
+      $('format').value = 'jpeg';
+      $('qualityRow').hidden = false;
+    }
+    $('targetRow').hidden = !state.compress;
+    $('exportStatus').textContent = '';
+    updateCompressHint();
+  });
+  $('targetKB').addEventListener('input', (e) => {
+    const v = Number(e.target.value);
+    if (isFinite(v)) state.targetKB = Math.max(10, Math.min(50000, v));
+  });
+  $('targetKB').addEventListener('change', (e) => {
+    const v = Math.max(10, Math.min(50000, Number(e.target.value) || 2000));
+    state.targetKB = v;
+    e.target.value = String(v);
+  });
+
+  /* ---------- import ---------- */
+
+  const drop = $('drop');
+  drop.addEventListener('click', () => $('file').click());
+  $('file').addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
+
+  ['dragenter', 'dragover'].forEach((type) => {
+    drop.addEventListener(type, (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach((type) => {
+    drop.addEventListener(type, (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', (e) => {
+    if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  });
+
+  // 阻止浏览器在页面其它位置直接打开图片
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => e.preventDefault());
+
+  document.addEventListener('paste', (e) => {
+    const files = [];
+    const items = e.clipboardData ? e.clipboardData.items : [];
+    for (const item of items) {
+      if (item.type && item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length) { e.preventDefault(); addFiles(files); }
+  });
+
+  /* ---------- canvas selection / resize ---------- */
+
+  canvas.addEventListener('pointerdown', (ev) => {
+    if (!state.images.length || !selectionEnabled()) return;
+    const p = canvasPoint(ev);
+    const rect = selectedItemRect();
+
+    if (rect && nearCorner(p, rect)) {
+      const cx = rect.x + rect.w / 2;
+      const cy = rect.y + rect.h / 2;
+      selectionDrag = {
+        cx,
+        cy,
+        startScale: state.selected.scale || 1,
+        startDist: Math.max(1, Math.hypot(p.x - cx, p.y - cy))
+      };
+      canvas.setPointerCapture(ev.pointerId);
+      ev.preventDefault();
+      return;
+    }
+
+    const hit = hitTest(p);
+    state.selected = hit ? hit.item : null;
+    syncSelectionBar(lastLayout);
+    schedule();
+  });
+
+  canvas.addEventListener('pointermove', (ev) => {
+    if (!selectionDrag || !state.selected) return;
+    const p = canvasPoint(ev);
+    const d = Math.hypot(p.x - selectionDrag.cx, p.y - selectionDrag.cy);
+    setSelectedScale(selectionDrag.startScale * (d / selectionDrag.startDist));
+  });
+
+  ['pointerup', 'pointercancel'].forEach((type) => {
+    canvas.addEventListener(type, () => { selectionDrag = null; });
+  });
+
+  canvas.addEventListener('click', (ev) => {
+    if (!state.images.length || !selectionEnabled() || selectionDrag) return;
+    const hit = hitTest(canvasPoint(ev));
+    state.selected = hit ? hit.item : null;
+    syncSelectionBar(lastLayout);
+    schedule();
+  });
+
+  $('selScale').addEventListener('input', (e) => setSelectedScale(Number(e.target.value) / 100));
+  $('selMinus').addEventListener('click', () => {
+    setSelectedScale((state.selected ? state.selected.scale : 1) - 0.05);
+  });
+  $('selPlus').addEventListener('click', () => {
+    setSelectedScale((state.selected ? state.selected.scale : 1) + 0.05);
+  });
+  $('selReset').addEventListener('click', () => setSelectedScale(1));
+
+  $('autoRatio').addEventListener('change', (e) => {
+    state.autoRatio = e.target.value;
+    schedule();
+  });
+
+  /* ---------- export ---------- */
+
+  function canvasBlob(mime, quality) {
+    return new Promise((resolve) => canvas.toBlob(resolve, mime, quality));
+  }
+
+  $('export').addEventListener('click', async () => {
+    if (!state.images.length) return;
+    const btn = $('export');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '导出中…';
+
+    try {
+      const mime = state.format === 'jpeg' ? 'image/jpeg' : (state.format === 'webp' ? 'image/webp' : 'image/png');
+      const ext = state.format === 'jpeg' ? 'jpg' : state.format;
+      let blob = await canvasBlob(mime, state.quality);
+      if (!blob) { alert('导出失败，请重试'); return; }
+
+      let note = '';
+      if (state.compress && state.format !== 'png') {
+        const target = Math.max(10, state.targetKB) * 1024;
+        if (blob.size > target) {
+          let lo = 0.15;
+          let hi = Math.max(0.15, Math.min(1, state.quality));
+          let best = null;
+          let smallest = blob;
+          for (let i = 0; i < 9; i++) {
+            const mid = (lo + hi) / 2;
+            const candidate = await canvasBlob(mime, mid);
+            if (!candidate) break;
+            if (candidate.size < smallest.size) smallest = candidate;
+            if (candidate.size <= target) { best = candidate; lo = mid; }
+            else { hi = mid; }
+          }
+          if (best) {
+            blob = best;
+          } else {
+            blob = smallest;
+            note = '目标 ' + state.targetKB + 'KB 太小，已按能压到的最小体积导出（' + Math.round(smallest.size / 1024) + 'KB）。';
+          }
+        }
+      }
+      const sizeKB = Math.round(blob.size / 1024);
+      $('exportStatus').textContent = '已导出 ' + sizeKB + ' KB' + (state.compress ? '（目标 ' + state.targetKB + ' KB）' : '');
+
+      const a = document.createElement('a');
+      const d = new Date();
+      const pad = (v) => String(v).padStart(2, '0');
+      const stamp = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+      a.href = URL.createObjectURL(blob);
+      a.download = '拼图_' + stamp + '.' + ext;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      if (note) alert(note);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  });
+
+  /* ---------- reset ---------- */
+
+  $('reset').addEventListener('click', () => {
+    state.layout = 'horizontal';
+    state.sizeMode = 'original';
+    state.autoCols = 0;
+    state.autoRatio = 'free';
+    state.selected = null;
+    state.compress = false;
+    state.targetKB = 2000;
+    state.outHeight = 1080;
+    state.outWidth = 1200;
+    state.gridWidth = 1200;
+    state.cols = 2;
+    state.cellRatio = 1.7778;
+    state.fit = 'cover';
+    state.gap = 12;
+    state.padding = 24;
+    state.radius = 0;
+    state.bg = '#ffffff';
+    state.format = 'png';
+    state.quality = 0.92;
+
+    $('outHeight').value = '1080';
+    $('outWidth').value = '1200';
+    $('gridWidth').value = '1200';
+    $('cols').value = '2';
+    $('cellRatio').value = '1.7778';
+    $('fit').value = 'cover';
+    $('autoCols').value = '0';
+    $('autoRatio').value = 'free';
+    $('selBar').hidden = true;
+    $('exportStatus').textContent = '';
+    $('compress').checked = false;
+    $('targetKB').value = '2000';
+    $('targetRow').hidden = true;
+    $('gap').value = '12'; $('gapVal').textContent = '12';
+    $('padding').value = '24'; $('paddingVal').textContent = '24';
+    $('radius').value = '0'; $('radiusVal').textContent = '0';
+    $('bg').value = '#ffffff';
+    $('format').value = 'png';
+    $('quality').value = '0.92'; $('qualityVal').textContent = '0.92';
+    $('qualityRow').hidden = true;
+    [...$('layoutSeg').querySelectorAll('button')].forEach((b) => b.classList.toggle('active', b.dataset.layout === 'horizontal'));
+    [...$('sizeSeg').querySelectorAll('button')].forEach((b) => b.classList.toggle('active', b.dataset.size === 'original'));
+    updateVisibility();
+    updateCompressHint();
+    schedule();
+  });
+
+  updateVisibility();
+  updateCompressHint();
+  renderList();
+  draw();
+})();
+</script>
+</body>
+</html>
